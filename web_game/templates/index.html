@@ -302,6 +302,71 @@
             color: #7f8c8d;
             font-style: italic;
         }
+        .changelog-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s ease;
+        }
+        .changelog-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .changelog-modal {
+            width: min(92vw, 620px);
+            background: linear-gradient(145deg, #1f2b3a, #243447);
+            border: 1px solid rgba(243, 156, 18, 0.35);
+            border-radius: 18px;
+            padding: 24px;
+            box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+        }
+        .changelog-modal h3 {
+            color: #f39c12;
+            margin-bottom: 8px;
+            font-size: 1.35em;
+        }
+        .changelog-modal .version-tag {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 10px;
+            background: rgba(243, 156, 18, 0.15);
+            color: #f8c471;
+            font-size: 0.85em;
+            margin-bottom: 14px;
+        }
+        .changelog-list {
+            margin: 12px 0 18px 18px;
+            line-height: 1.7;
+            color: #ecf0f1;
+        }
+        .changelog-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+        .changelog-btn {
+            border: none;
+            border-radius: 10px;
+            padding: 9px 14px;
+            cursor: pointer;
+            font-size: 0.95em;
+        }
+        .changelog-btn.primary {
+            background: linear-gradient(45deg, #f39c12, #e67e22);
+            color: #111;
+            font-weight: bold;
+        }
+        .changelog-btn.ghost {
+            background: rgba(255,255,255,0.1);
+            color: #ecf0f1;
+        }
 
         .training-badge {
             display: inline-flex;
@@ -444,11 +509,30 @@
         </div>
     </div>
 
+    <!-- 更新日志弹窗 -->
+    <div id="changelogOverlay" class="changelog-overlay">
+        <div class="changelog-modal">
+            <h3>📢 新版本更新说明</h3>
+            <div class="version-tag">v1.5 · 部署与模型热更新增强</div>
+            <ul class="changelog-list">
+                <li>支持通过 <code>BLUFF_MODEL_URL</code> 加载你上传到发行版的模型</li>
+                <li>新增模型热重载接口：<code>POST /api/model/reload</code></li>
+                <li>支持 Render 部署配置，环境变量可控制训练与模型参数</li>
+                <li>修复“混用另一个吹牛项目模型”时的参数不一致问题</li>
+            </ul>
+            <div class="changelog-actions">
+                <button class="changelog-btn ghost" onclick="window.location.href='/updates'">查看完整更新日志</button>
+                <button class="changelog-btn primary" onclick="closeChangelog()">我知道了</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let gameState = null;
         let lastHumanFirst = true;
         let currentDifficulty = 'normal';
         let diceStyle = localStorage.getItem('dice_style') || '2';
+        const CHANGELOG_VERSION = 'v1.5-render-release';
 
         // 战绩统计
         let stats = JSON.parse(localStorage.getItem('bluff_stats') || '{"humanWins":0,"aiWins":0}');
@@ -734,6 +818,22 @@
                 }
             } catch {}
         }
+
+        function showChangelogIfNeeded() {
+            const key = `changelog_seen_${CHANGELOG_VERSION}`;
+            const alreadySeen = localStorage.getItem(key) === '1';
+            if (!alreadySeen) {
+                document.getElementById('changelogOverlay').classList.add('show');
+            }
+        }
+
+        function closeChangelog() {
+            const key = `changelog_seen_${CHANGELOG_VERSION}`;
+            localStorage.setItem(key, '1');
+            document.getElementById('changelogOverlay').classList.remove('show');
+        }
+
+        showChangelogIfNeeded();
     </script>
 </body>
 </html>

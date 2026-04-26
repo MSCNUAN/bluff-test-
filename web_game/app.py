@@ -9,15 +9,42 @@ import os
 import sys
 import urllib.request
 import uuid
+import importlib
+from importlib.machinery import SourcelessFileLoader
+from importlib.util import spec_from_loader, module_from_spec
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
 sys.path.insert(0, script_dir)
 sys.path.insert(0, parent_dir)
 
-from bluff_dice_env_v3 import BluffDiceEnvV3
-from model_dmc import DMCNetwork, DMCNetworkV5
 from online_trainer import OnlineTrainer
+
+
+def resolve_module(name):
+    """
+    兼容两种打包方式：
+    1) 正常源码模块（*.py）
+    2) 仅包含 __pycache__/*.pyc 的 sourceless 模块
+    """
+    try:
+        return importlib.import_module(name)
+    except ModuleNotFoundError:
+        pyc_path = os.path.join(parent_dir, '__pycache__', f'{name}.cpython-310.pyc')
+        if not os.path.exists(pyc_path):
+            raise
+        loader = SourcelessFileLoader(name, pyc_path)
+        spec = spec_from_loader(name, loader)
+        module = module_from_spec(spec)
+        loader.exec_module(module)
+        return module
+
+
+env_module = resolve_module('bluff_dice_env_v3')
+model_module = resolve_module('model_dmc')
+BluffDiceEnvV3 = env_module.BluffDiceEnvV3
+DMCNetwork = model_module.DMCNetwork
+DMCNetworkV5 = model_module.DMCNetworkV5
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
@@ -29,6 +56,30 @@ ai_device = None
 online_trainer = None  # 在线训练器
 training_enabled = os.getenv('TRAINING_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
 runtime_initialized = False
+codex/connect-model-to-deployment-for-game-ze7ven
+
+
+def env_int(name, default):
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def env_float(name, default):
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+MODEL_STATE_DIM = env_int('MODEL_STATE_DIM', 44)
+MODEL_NUM_ACTIONS = env_int('MODEL_NUM_ACTIONS', 67)
+MODEL_HISTORY_LEN = env_int('MODEL_HISTORY_LEN', 5)
+MODEL_V5_HIDDEN_DIM = env_int('MODEL_V5_HIDDEN_DIM', 384)
+MODEL_V3_HIDDEN_DIM = env_int('MODEL_V3_HIDDEN_DIM', 256)
+=======
+main
 
 # ==========================================
 # 🌟 核心升级：多桌游戏大厅登记册 (替代全局变量)
@@ -66,12 +117,29 @@ def load_ai_model():
 
     def _build_model_from_state_dict(state_dict):
         try:
+codex/connect-model-to-deployment-for-game-ze7ven
+            model = DMCNetworkV5(
+                state_dim=MODEL_STATE_DIM,
+                num_actions=MODEL_NUM_ACTIONS,
+                history_len=MODEL_HISTORY_LEN,
+                hidden_dim=MODEL_V5_HIDDEN_DIM,
+            ).to(ai_device)
+=======
             model = DMCNetworkV5(state_dim=44, num_actions=67, history_len=5, hidden_dim=384).to(ai_device)
+ main
             model.load_state_dict(state_dict)
             print("[OK] 模型按 V5 架构加载成功")
             return model
         except Exception:
+ codex/connect-model-to-deployment-for-game-ze7ven
+            model = DMCNetwork(
+                hidden_dim=MODEL_V3_HIDDEN_DIM,
+                num_actions=MODEL_NUM_ACTIONS,
+                history_len=MODEL_HISTORY_LEN
+            ).to(ai_device)
+=======
             model = DMCNetwork(hidden_dim=256, num_actions=67, history_len=5).to(ai_device)
+ main
             model.load_state_dict(state_dict)
             print("[OK] 模型按 V3 架构加载成功")
             return model
@@ -99,7 +167,12 @@ def load_ai_model():
     # 次优先：本地 V5 最强模型 (ELO=1140)
     v5_path = os.path.join(script_dir, 'models', 'dmc_v5_best.pth')
     if os.path.exists(v5_path):
-        ai_model = DMCNetworkV5(state_dim=44, num_actions=67, history_len=5, hidden_dim=384).to(ai_device)
+        ai_model = DMCNetworkV5(
+            state_dim=MODEL_STATE_DIM,
+            num_actions=MODEL_NUM_ACTIONS,
+            history_len=MODEL_HISTORY_LEN,
+            hidden_dim=MODEL_V5_HIDDEN_DIM
+        ).to(ai_device)
         checkpoint = torch.load(v5_path, map_location=ai_device, weights_only=False)
         ai_model.load_state_dict(checkpoint['model_state_dict'])
         ai_model.eval()
@@ -120,7 +193,11 @@ def load_ai_model():
             print("游戏仍可运行，但AI将使用随机策略")
             return False
 
-    ai_model = DMCNetwork(hidden_dim=256, num_actions=67, history_len=5).to(ai_device)
+    ai_model = DMCNetwork(
+        hidden_dim=MODEL_V3_HIDDEN_DIM,
+        num_actions=MODEL_NUM_ACTIONS,
+        history_len=MODEL_HISTORY_LEN
+    ).to(ai_device)
     checkpoint = torch.load(local_path, map_location=ai_device, weights_only=False)
     ai_model.load_state_dict(_extract_state_dict(checkpoint))
     ai_model.eval()
@@ -171,22 +248,39 @@ def init_online_trainer():
     global online_trainer, ai_model, ai_device, training_enabled
     if not training_enabled or ai_model is None:
         return
+    trainer_config = {
+        'lr': env_float('TRAIN_LR', 1e-5),
+        'batch_size': env_int('TRAIN_BATCH_SIZE', 64),
+        'train_interval': env_int('TRAIN_INTERVAL', 3),         # 每N局训练一次
+        'imitation_weight': env_float('TRAIN_IMITATION_WEIGHT', 0.3),
+        'value_weight': env_float('TRAIN_VALUE_WEIGHT', 0.5),
+        'save_interval': env_int('TRAIN_SAVE_INTERVAL', 30),    # 每N局存模型
+        'save_dir': os.path.join(script_dir, 'models'),
+        'buffer_capacity': env_int('TRAIN_BUFFER_CAPACITY', 50000),
+        'max_grad_norm': env_float('TRAIN_MAX_GRAD_NORM', 1.0),
+    }
     online_trainer = OnlineTrainer(
         model=ai_model,
         device=ai_device,
-        config={
-            'lr': 1e-5,
-            'batch_size': 64,
-            'train_interval': 3,       # 每3局训练一次
-            'imitation_weight': 0.3,   # 模仿学习权重
-            'value_weight': 0.5,       # value loss权重
-            'save_interval': 30,       # 每30局存模型
-            'save_dir': os.path.join(script_dir, 'models'),
-            'buffer_capacity': 50000,
-        }
+        config=trainer_config
     )
     online_trainer.start()
-    print("[OK] 在线训练器已启动 - AI会从对局中学习")
+    print(f"[OK] 在线训练器已启动: {trainer_config}")
+
+
+def init_runtime_once():
+    """确保在 gunicorn/import 场景下也会执行一次初始化。"""
+    global runtime_initialized
+    if runtime_initialized:
+        return
+    load_ai_model()
+    init_online_trainer()
+    runtime_initialized = True
+    print("[OK] 运行时初始化完成")
+
+
+# 关键：支持 gunicorn `web_game.app:app` 启动时自动初始化
+init_runtime_once()
 
 
 def init_runtime_once():
@@ -206,7 +300,7 @@ init_runtime_once()
 
 class GameSession:
     def __init__(self, user_id=None):
-        self.env = BluffDiceEnvV3(history_len=5)
+        self.env = BluffDiceEnvV3(history_len=MODEL_HISTORY_LEN)
         self.human_player = 0
         self.ai_player = 1
         self.game_over = False
