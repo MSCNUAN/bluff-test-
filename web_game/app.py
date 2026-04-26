@@ -56,7 +56,6 @@ ai_device = None
 online_trainer = None  # 在线训练器
 training_enabled = os.getenv('TRAINING_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
 runtime_initialized = False
-codex/connect-model-to-deployment-for-game-ze7ven
 
 
 def env_int(name, default):
