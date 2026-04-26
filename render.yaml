@@ -1,0 +1,40 @@
+services:
+  - type: web
+    name: bluff-dice-web
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn web_game.app:app --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
+      - key: TRAINING_ENABLED
+        value: "false"
+      - key: TRAIN_LR
+        value: "1e-5"
+      - key: TRAIN_BATCH_SIZE
+        value: "64"
+      - key: TRAIN_INTERVAL
+        value: "3"
+      - key: TRAIN_IMITATION_WEIGHT
+        value: "0.3"
+      - key: TRAIN_VALUE_WEIGHT
+        value: "0.5"
+      - key: TRAIN_MAX_GRAD_NORM
+        value: "1.0"
+      - key: TRAIN_SAVE_INTERVAL
+        value: "30"
+      - key: TRAIN_BUFFER_CAPACITY
+        value: "50000"
+      - key: MODEL_STATE_DIM
+        value: "44"
+      - key: MODEL_NUM_ACTIONS
+        value: "67"
+      - key: MODEL_HISTORY_LEN
+        value: "5"
+      - key: MODEL_V5_HIDDEN_DIM
+        value: "384"
+      - key: MODEL_V3_HIDDEN_DIM
+        value: "256"
+      - key: SECRET_KEY
+        generateValue: true
