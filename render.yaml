@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: bluff-dice-web
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn web_game.app:app --workers 1 --threads 4 --timeout 120
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.13
+      - key: TRAINING_ENABLED
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true

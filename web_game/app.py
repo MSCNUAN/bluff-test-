@@ -21,13 +21,14 @@ from online_trainer import OnlineTrainer
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-# 密钥稍微改长一点，保证公网环境下的 Session 安全
-app.secret_key = 'bluff_dice_secret_key_2026_pro_max_nuan'
+# 生产环境请通过环境变量注入 SECRET_KEY
+app.secret_key = os.getenv('SECRET_KEY', 'dev-only-secret-change-me')
 
 ai_model = None
 ai_device = None
 online_trainer = None  # 在线训练器
-training_enabled = True  # 默认开启在线训练
+training_enabled = os.getenv('TRAINING_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
+runtime_initialized = False
 
 # ==========================================
 # 🌟 核心升级：多桌游戏大厅登记册 (替代全局变量)
@@ -186,6 +187,21 @@ def init_online_trainer():
     )
     online_trainer.start()
     print("[OK] 在线训练器已启动 - AI会从对局中学习")
+
+
+def init_runtime_once():
+    """确保在 gunicorn/import 场景下也会执行一次初始化。"""
+    global runtime_initialized
+    if runtime_initialized:
+        return
+    load_ai_model()
+    init_online_trainer()
+    runtime_initialized = True
+    print("[OK] 运行时初始化完成")
+
+
+# 关键：支持 gunicorn `web_game.app:app` 启动时自动初始化
+init_runtime_once()
 
 
 class GameSession:
@@ -491,9 +507,9 @@ if __name__ == '__main__':
     print("="*80)
     print("[Bluff Dice v2.0] - Online Learning Edition")
     print("="*80)
-    load_ai_model()
-    init_online_trainer()
-    print("服务器运行中 → http://localhost:5000")
+    init_runtime_once()
+    port = int(os.getenv('PORT', '5000'))
+    print(f"服务器运行中 → http://localhost:{port}")
     print("="*80)
     # 此处的 host='0.0.0.0' 允许外部网络访问
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=port)
