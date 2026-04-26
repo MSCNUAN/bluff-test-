@@ -10,6 +10,7 @@ services:
         value: 3.10.13
       - key: TRAINING_ENABLED
         value: "false"
+ codex/connect-model-to-deployment-for-game-ze7ven
       - key: TRAIN_LR
         value: "1e-5"
       - key: TRAIN_BATCH_SIZE
@@ -36,5 +37,7 @@ services:
         value: "384"
       - key: MODEL_V3_HIDDEN_DIM
         value: "256"
+=======
+ main
       - key: SECRET_KEY
         generateValue: true

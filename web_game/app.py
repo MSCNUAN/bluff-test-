@@ -56,6 +56,7 @@ ai_device = None
 online_trainer = None  # 在线训练器
 training_enabled = os.getenv('TRAINING_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
 runtime_initialized = False
+codex/connect-model-to-deployment-for-game-ze7ven
 
 
 def env_int(name, default):
@@ -77,6 +78,8 @@ MODEL_NUM_ACTIONS = env_int('MODEL_NUM_ACTIONS', 67)
 MODEL_HISTORY_LEN = env_int('MODEL_HISTORY_LEN', 5)
 MODEL_V5_HIDDEN_DIM = env_int('MODEL_V5_HIDDEN_DIM', 384)
 MODEL_V3_HIDDEN_DIM = env_int('MODEL_V3_HIDDEN_DIM', 256)
+=======
+main
 
 # ==========================================
 # 🌟 核心升级：多桌游戏大厅登记册 (替代全局变量)
@@ -114,21 +117,29 @@ def load_ai_model():
 
     def _build_model_from_state_dict(state_dict):
         try:
+codex/connect-model-to-deployment-for-game-ze7ven
             model = DMCNetworkV5(
                 state_dim=MODEL_STATE_DIM,
                 num_actions=MODEL_NUM_ACTIONS,
                 history_len=MODEL_HISTORY_LEN,
                 hidden_dim=MODEL_V5_HIDDEN_DIM,
             ).to(ai_device)
+=======
+            model = DMCNetworkV5(state_dim=44, num_actions=67, history_len=5, hidden_dim=384).to(ai_device)
+ main
             model.load_state_dict(state_dict)
             print("[OK] 模型按 V5 架构加载成功")
             return model
         except Exception:
+ codex/connect-model-to-deployment-for-game-ze7ven
             model = DMCNetwork(
                 hidden_dim=MODEL_V3_HIDDEN_DIM,
                 num_actions=MODEL_NUM_ACTIONS,
                 history_len=MODEL_HISTORY_LEN
             ).to(ai_device)
+=======
+            model = DMCNetwork(hidden_dim=256, num_actions=67, history_len=5).to(ai_device)
+ main
             model.load_state_dict(state_dict)
             print("[OK] 模型按 V3 架构加载成功")
             return model
@@ -255,6 +266,21 @@ def init_online_trainer():
     )
     online_trainer.start()
     print(f"[OK] 在线训练器已启动: {trainer_config}")
+
+
+def init_runtime_once():
+    """确保在 gunicorn/import 场景下也会执行一次初始化。"""
+    global runtime_initialized
+    if runtime_initialized:
+        return
+    load_ai_model()
+    init_online_trainer()
+    runtime_initialized = True
+    print("[OK] 运行时初始化完成")
+
+
+# 关键：支持 gunicorn `web_game.app:app` 启动时自动初始化
+init_runtime_once()
 
 
 def init_runtime_once():

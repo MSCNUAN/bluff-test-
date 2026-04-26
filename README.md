@@ -57,6 +57,7 @@ curl -X POST http://localhost:5000/api/model/reload \
 
 6. 运行中切换模型
    - 使用 `POST /api/model/reload` 传 `url` 或 `path` 热重载模型，无需重启。
+codex/connect-model-to-deployment-for-game-ze7ven
 
 ## 在线训练功能说明（已集成）
 
@@ -120,3 +121,5 @@ curl -X POST http://localhost:5000/api/model/reload \
 - `MODEL_STATE_DIM=44`
 - `MODEL_NUM_ACTIONS=67`
 - `MODEL_HISTORY_LEN=5`
+=======
+ main
