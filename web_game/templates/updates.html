@@ -29,6 +29,30 @@
 
         <!-- 时间线 -->
         <div class="space-y-12">
+
+            <!-- v1.5 -->
+            <div class="flex gap-8">
+                <div class="w-28 text-right">
+                    <div class="text-amber-400 font-mono text-sm">2026.04.26</div>
+                    <div class="text-2xl font-bold text-white">v1.5</div>
+                </div>
+                <div class="flex-1 bg-white/5 border border-amber-400/30 rounded-3xl p-8">
+                    <div class="inline-flex items-center gap-2 bg-amber-400 text-black text-sm font-medium px-4 py-1 rounded-2xl mb-4">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> 部署增强版
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-6">模型接入与线上部署优化</h3>
+                    <div class="grid md:grid-cols-2 gap-6 text-zinc-300">
+                        <div class="space-y-4">
+                            <div class="flex gap-3"><i class="fa-solid fa-link text-emerald-400 mt-1"></i> 支持通过发行版直链加载模型（BLUFF_MODEL_URL）</div>
+                            <div class="flex gap-3"><i class="fa-solid fa-arrows-rotate text-emerald-400 mt-1"></i> 新增模型热重载接口 /api/model/reload</div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex gap-3"><i class="fa-solid fa-server text-emerald-400 mt-1"></i> Render 部署参数模板与环境变量支持</div>
+                            <div class="flex gap-3"><i class="fa-solid fa-shield-halved text-emerald-400 mt-1"></i> 修复混用其它项目模型时的维度配置问题</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             
             <!-- v1.4 正式上线 -->
             <div class="flex gap-8">
