@@ -77,7 +77,7 @@ MODEL_NUM_ACTIONS = env_int('MODEL_NUM_ACTIONS', 67)
 MODEL_HISTORY_LEN = env_int('MODEL_HISTORY_LEN', 5)
 MODEL_V5_HIDDEN_DIM = env_int('MODEL_V5_HIDDEN_DIM', 384)
 MODEL_V3_HIDDEN_DIM = env_int('MODEL_V3_HIDDEN_DIM', 256)
-=======
+
 main
 
 # ==========================================
@@ -123,7 +123,7 @@ codex/connect-model-to-deployment-for-game-ze7ven
                 history_len=MODEL_HISTORY_LEN,
                 hidden_dim=MODEL_V5_HIDDEN_DIM,
             ).to(ai_device)
-=======
+
             model = DMCNetworkV5(state_dim=44, num_actions=67, history_len=5, hidden_dim=384).to(ai_device)
  main
             model.load_state_dict(state_dict)
@@ -136,7 +136,7 @@ codex/connect-model-to-deployment-for-game-ze7ven
                 num_actions=MODEL_NUM_ACTIONS,
                 history_len=MODEL_HISTORY_LEN
             ).to(ai_device)
-=======
+
             model = DMCNetwork(hidden_dim=256, num_actions=67, history_len=5).to(ai_device)
  main
             model.load_state_dict(state_dict)
