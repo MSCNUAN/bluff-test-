@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支持我们 - 吹牛骰子</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans SC', system-ui, sans-serif; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-zinc-950 to-black text-white min-h-screen flex items-center justify-center">
+
+    <div class="max-w-5xl mx-auto px-6 py-12 text-center">
+        
+        <!-- 标题区 -->
+        <div class="mb-12">
+            <div class="text-7xl mb-6">🎲</div>
+            <h1 class="text-5xl font-bold tracking-wider mb-4">感谢您玩吹牛骰子！</h1>
+            <p class="text-xl text-zinc-400 max-w-lg mx-auto">
+                您的每一次游戏、每一次反馈，都是我们继续优化的动力 ❤️
+            </p>
+        </div>
+
+        <!-- 支持方式 -->
+        <div class="grid md:grid-cols-3 gap-8 mb-16">
+            
+            <!-- 打赏支持 -->
+            <div onclick="alert('感谢支持！\n\n微信/支付宝赞赏码已复制到剪贴板（实际使用时请替换为您的二维码）')" 
+                 class="group bg-white/5 hover:bg-amber-500/10 border border-white/10 hover:border-amber-400 rounded-3xl p-8 transition-all cursor-pointer">
+                <div class="w-16 h-16 mx-auto mb-6 bg-gradient-to-br from-red-400 to-amber-400 rounded-2xl flex items-center justify-center text-4xl group-hover:scale-110 transition">
+                    ❤️
+                </div>
+                <h3 class="text-2xl font-semibold mb-3">打赏支持</h3>
+                <p class="text-zinc-400 mb-6">一杯咖啡的钱，就能让AI变得更强</p>
+                <div class="text-amber-400 text-sm font-medium flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-qrcode"></i> 微信 / 支付宝赞赏
+                </div>
+            </div>
+
+            <!-- GitHub 给星 -->
+            <div onclick="window.open('https://github.com','_blank')" 
+                 class="group bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white rounded-3xl p-8 transition-all cursor-pointer">
+                <div class="w-16 h-16 mx-auto mb-6 bg-black rounded-2xl flex items-center justify-center text-4xl group-hover:scale-110 transition">
+                    <i class="fa-brands fa-github"></i>
+                </div>
+                <h3 class="text-2xl font-semibold mb-3">GitHub 给星</h3>
+                <p class="text-zinc-400 mb-6">开源项目需要您的⭐ 支持</p>
+                <div class="text-white text-sm font-medium flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-star"></i> 点亮星星 · 持续更新
+                </div>
+            </div>
+
+            <!-- 分享给朋友 -->
+            <div onclick="shareGame()" 
+                 class="group bg-white/5 hover:bg-emerald-500/10 border border-white/10 hover:border-emerald-400 rounded-3xl p-8 transition-all cursor-pointer">
+                <div class="w-16 h-16 mx-auto mb-6 bg-emerald-500 rounded-2xl flex items-center justify-center text-4xl group-hover:scale-110 transition">
+                    📢
+                </div>
+                <h3 class="text-2xl font-semibold mb-3">分享给朋友</h3>
+                <p class="text-zinc-400 mb-6">让更多人一起享受吹牛乐趣</p>
+                <div class="text-emerald-400 text-sm font-medium flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-share-nodes"></i> 一键分享
+                </div>
+            </div>
+        </div>
+
+        <!-- 额外支持 -->
+        <div class="bg-white/5 border border-white/10 rounded-3xl p-10 max-w-2xl mx-auto mb-12">
+            <h3 class="text-xl font-semibold mb-6">其他支持方式</h3>
+            <div class="flex flex-wrap justify-center gap-6 text-sm">
+                <a href="#" class="flex items-center gap-2 hover:text-amber-400 transition">
+                    <i class="fa-solid fa-comment-dots"></i> 反馈建议
+                </a>
+                <a href="#" class="flex items-center gap-2 hover:text-amber-400 transition">
+                    <i class="fa-solid fa-bug"></i> 报告Bug
+                </a>
+                <a href="https://github.com" target="_blank" class="flex items-center gap-2 hover:text-amber-400 transition">
+                    <i class="fa-brands fa-github"></i> 参与开源
+                </a>
+            </div>
+        </div>
+
+        <!-- 返回按钮 -->
+        <a href="/" 
+           class="inline-flex items-center gap-3 px-10 py-5 bg-gradient-to-r from-amber-400 to-red-500 text-black font-bold text-2xl rounded-3xl hover:scale-105 transition shadow-xl">
+            <i class="fa-solid fa-arrow-left"></i>
+            返回游戏大厅
+        </a>
+
+        <p class="text-zinc-500 text-xs mt-12">Made with ❤️ for all Bluff Dice players</p>
+    </div>
+
+    <script>
+        function shareGame() {
+            const text = "🎲 我在玩吹牛骰子AI对战！超好玩的赌场级体验，快来一起吹牛吧！\nhttp://localhost:5000";
+            navigator.clipboard.writeText(text).then(() => {
+                alert("✅ 分享文案已复制到剪贴板！快发给朋友吧～");
+            });
+        }
+
+        // Tailwind 初始化
+        tailwind.config = { content: ["*"] };
+    </script>
+</body>
+</html>

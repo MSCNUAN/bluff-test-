@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>骰子风格选择</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            padding: 40px 20px;
+        }
+        h1 { text-align: center; margin-bottom: 40px; font-size: 2em; }
+        .styles {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .style-card {
+            background: rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            min-width: 280px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 3px solid transparent;
+        }
+        .style-card:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-5px);
+        }
+        .style-card.selected {
+            border-color: #f39c12;
+            box-shadow: 0 0 30px rgba(243,156,18,0.3);
+        }
+        .style-card h2 { margin-bottom: 20px; font-size: 1.3em; }
+        .style-card .desc { color: #bdc3c7; font-size: 0.9em; margin-bottom: 20px; }
+        .dice-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .dice-row img { width: 60px; height: 60px; }
+        .back-dice {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8em;
+        }
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        .btn-apply {
+            background: linear-gradient(45deg, #f39c12, #e74c3c);
+            color: #fff;
+        }
+        .btn-apply:hover { transform: scale(1.05); }
+        .actions { text-align: center; margin-top: 40px; }
+    </style>
+</head>
+<body>
+    <h1>🎲 选择骰子风格</h1>
+    <div class="styles">
+        <!-- Style 1 -->
+        <div class="style-card" onclick="select(1)" id="card1">
+            <h2>🤍 经典白底</h2>
+            <p class="desc">白底黑点，经典赌场风</p>
+            <div class="dice-row">
+                <img src="/static/dice/style1/1.svg">
+                <img src="/static/dice/style1/2.svg">
+                <img src="/static/dice/style1/3.svg">
+                <img src="/static/dice/style1/4.svg">
+                <img src="/static/dice/style1/5.svg">
+                <img src="/static/dice/style1/6.svg">
+            </div>
+        </div>
+        <!-- Style 2 -->
+        <div class="style-card" onclick="select(2)" id="card2">
+            <h2>❤️ 赌场红</h2>
+            <p class="desc">红底白点3D质感，拉斯维加斯风</p>
+            <div class="dice-row">
+                <img src="/static/dice/style2/1.svg">
+                <img src="/static/dice/style2/2.svg">
+                <img src="/static/dice/style2/3.svg">
+                <img src="/static/dice/style2/4.svg">
+                <img src="/static/dice/style2/5.svg">
+                <img src="/static/dice/style2/6.svg">
+            </div>
+        </div>
+        <!-- Style 3 -->
+        <div class="style-card" onclick="select(3)" id="card3">
+            <h2>💜 暗夜金</h2>
+            <p class="desc">深紫底金色点，高端质感</p>
+            <div class="dice-row">
+                <img src="/static/dice/style3/1.svg">
+                <img src="/static/dice/style3/2.svg">
+                <img src="/static/dice/style3/3.svg">
+                <img src="/static/dice/style3/4.svg">
+                <img src="/static/dice/style3/5.svg">
+                <img src="/static/dice/style3/6.svg">
+            </div>
+        </div>
+    </div>
+    <div class="actions">
+        <button class="btn btn-apply" onclick="apply()">确认选择</button>
+    </div>
+    <script>
+        let chosen = 0;
+        function select(n) {
+            chosen = n;
+            document.querySelectorAll('.style-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById('card' + n).classList.add('selected');
+        }
+        function apply() {
+            if (!chosen) { alert('先选一个风格'); return; }
+            localStorage.setItem('dice_style', chosen);
+            alert('已选择风格 ' + chosen + '，即将跳转游戏');
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

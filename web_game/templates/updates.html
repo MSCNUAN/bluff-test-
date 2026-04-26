@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>更新日志 - 吹牛骰子</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+        body { font-family: 'Noto Sans SC', system-ui, sans-serif; }
+        .timeline-dot { animation: pulse 2s infinite; }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-zinc-950 to-zinc-900 text-white min-h-screen">
+
+    <div class="max-w-4xl mx-auto px-6 py-12">
+        <!-- 标题 -->
+        <div class="flex items-center justify-between mb-10">
+            <div class="flex items-center gap-4">
+                <i class="fa-solid fa-clock-rotate-left text-4xl text-amber-400"></i>
+                <h1 class="text-4xl font-bold tracking-wider">更新日志</h1>
+            </div>
+            <a href="/" 
+               class="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-2xl transition">
+                <i class="fa-solid fa-arrow-left"></i> 返回游戏
+            </a>
+        </div>
+
+        <!-- 时间线 -->
+        <div class="space-y-12">
+            
+            <!-- v1.4 正式上线 -->
+            <div class="flex gap-8">
+                <div class="w-28 text-right">
+                    <div class="text-amber-400 font-mono text-sm">2026.04.14</div>
+                    <div class="text-2xl font-bold text-white">v1.4</div>
+                </div>
+                <div class="flex-1 bg-white/5 border border-amber-400/30 rounded-3xl p-8">
+                    <div class="inline-flex items-center gap-2 bg-amber-400 text-black text-sm font-medium px-4 py-1 rounded-2xl mb-4">
+                        <i class="fa-solid fa-rocket"></i> 正式上线版
+                    </div>
+                    <h3 class="text-2xl font-semibold mb-6">重磅更新 · 正式上线！</h3>
+                    <div class="grid md:grid-cols-2 gap-6 text-zinc-300">
+                        <div class="space-y-4">
+                            <div class="flex gap-3"><i class="fa-solid fa-dice text-emerald-400 mt-1"></i> 支持3种骰子风格切换（白底/红底/紫金）</div>
+                            <div class="flex gap-3"><i class="fa-solid fa-sliders text-emerald-400 mt-1"></i> 全新滑块 + 快捷点数叫牌面板</div>
+                            <div class="flex gap-3"><i class="fa-solid fa-volume-high text-emerald-400 mt-1"></i> 真实点击、叫牌、开牌、胜负音效</div>
+                        </div>
+                        <div class="space-y-4">
+                            <div class="flex gap-3"><i class="fa-solid fa-trophy text-emerald-400 mt-1"></i> 简单 / 普通 / 困难 三种难度</div>
+                            <div class="flex gap-3"><i class="fa-solid fa-burst text-emerald-400 mt-1"></i> 胜利全屏彩带特效</div>
+                            <div class="flex gap-3"><i class="fa-solid fa-chart-line text-emerald-400 mt-1"></i> 本地永久胜率统计面板</div>
+                        </div>
+                    </div>
+                    <p class="text-zinc-400 text-sm mt-8">感谢所有玩家支持！现已可正式部署上线。</p>
+                </div>
+            </div>
+
+            <!-- v1.3 -->
+            <div class="flex gap-8 opacity-75">
+                <div class="w-28 text-right">
+                    <div class="text-amber-400 font-mono text-sm">2026.04.13</div>
+                    <div class="text-xl font-bold">v1.3</div>
+                </div>
+                <div class="flex-1 bg-white/5 border border-white/20 rounded-3xl p-8">
+                    <h3 class="text-xl font-semibold mb-4">视觉与交互大升级</h3>
+                    <ul class="space-y-3 text-zinc-400">
+                        <li class="flex gap-3"><span class="text-emerald-400">✔</span> 骰子摇晃入场动画</li>
+                        <li class="flex gap-3"><span class="text-emerald-400">✔</span> 当前叫牌霓虹呼吸灯效果</li>
+                        <li class="flex gap-3"><span class="text-emerald-400">✔</span> 胜率实时统计面板</li>
+                        <li class="flex gap-3"><span class="text-emerald-400">✔</span> AI建议显示推荐指数</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- v1.2 -->
+            <div class="flex gap-8 opacity-60">
+                <div class="w-28 text-right">
+                    <div class="text-amber-400 font-mono text-sm">2026.04.12</div>
+                    <div class="text-xl font-bold">v1.2</div>
+                </div>
+                <div class="flex-1 bg-white/5 border border-white/20 rounded-3xl p-8">
+                    <h3 class="text-xl font-semibold mb-4">小白友好版</h3>
+                    <p class="text-zinc-400">全新暗黑赌场界面 + 30秒新手教程 + 公告栏 + 广告页</p>
+                </div>
+            </div>
+
+            <!-- v1.1 -->
+            <div class="flex gap-8 opacity-50">
+                <div class="w-28 text-right">
+                    <div class="text-amber-400 font-mono text-sm">2026.03</div>
+                    <div class="text-xl font-bold">v1.1</div>
+                </div>
+                <div class="flex-1 bg-white/5 border border-white/20 rounded-3xl p-8">
+                    <h3 class="text-xl font-semibold mb-4">AI 模型升级</h3>
+                    <p class="text-zinc-400">DMC模型训练132万局，AI胜率提升至96.6%</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="text-center mt-16">
+            <p class="text-zinc-400 text-sm">持续更新中 · 感谢您的支持 ❤️</p>
+            <a href="/" class="mt-6 inline-flex items-center gap-3 px-10 py-4 bg-gradient-to-r from-amber-400 to-red-500 text-black font-bold rounded-3xl text-xl hover:scale-105 transition">
+                <i class="fa-solid fa-gamepad"></i> 立即返回游戏
+            </a>
+        </div>
+    </div>
+
+</body>
+</html>
