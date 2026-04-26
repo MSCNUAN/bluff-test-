@@ -21,13 +21,35 @@ from online_trainer import OnlineTrainer
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-# 密钥稍微改长一点，保证公网环境下的 Session 安全
-app.secret_key = 'bluff_dice_secret_key_2026_pro_max_nuan'
+# 生产环境请通过环境变量注入 SECRET_KEY
+app.secret_key = os.getenv('SECRET_KEY', 'dev-only-secret-change-me')
 
 ai_model = None
 ai_device = None
 online_trainer = None  # 在线训练器
-training_enabled = True  # 默认开启在线训练
+training_enabled = os.getenv('TRAINING_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
+runtime_initialized = False
+
+
+def env_int(name, default):
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def env_float(name, default):
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+MODEL_STATE_DIM = env_int('MODEL_STATE_DIM', 44)
+MODEL_NUM_ACTIONS = env_int('MODEL_NUM_ACTIONS', 67)
+MODEL_HISTORY_LEN = env_int('MODEL_HISTORY_LEN', 5)
+MODEL_V5_HIDDEN_DIM = env_int('MODEL_V5_HIDDEN_DIM', 384)
+MODEL_V3_HIDDEN_DIM = env_int('MODEL_V3_HIDDEN_DIM', 256)
 
 # ==========================================
 # 🌟 核心升级：多桌游戏大厅登记册 (替代全局变量)
@@ -50,15 +72,69 @@ def get_user_session():
 # ==========================================
 
 def load_ai_model():
-    """加载 AI 模型 - 如果本地没有就自动从 GitHub 下载"""
+    """加载 AI 模型，可通过环境变量覆盖默认下载源。"""
     global ai_model, ai_device
     
     ai_device = torch.device('cpu')
 
-    # 优先加载 V5 最强模型 (ELO=1140)
+    custom_model_url = os.getenv('BLUFF_MODEL_URL', '').strip()
+    custom_model_path = os.getenv('BLUFF_MODEL_PATH', '').strip()
+
+    def _extract_state_dict(checkpoint_obj):
+        if isinstance(checkpoint_obj, dict) and 'model_state_dict' in checkpoint_obj:
+            return checkpoint_obj['model_state_dict']
+        return checkpoint_obj
+
+    def _build_model_from_state_dict(state_dict):
+        try:
+            model = DMCNetworkV5(
+                state_dim=MODEL_STATE_DIM,
+                num_actions=MODEL_NUM_ACTIONS,
+                history_len=MODEL_HISTORY_LEN,
+                hidden_dim=MODEL_V5_HIDDEN_DIM,
+            ).to(ai_device)
+            model.load_state_dict(state_dict)
+            print("[OK] 模型按 V5 架构加载成功")
+            return model
+        except Exception:
+            model = DMCNetwork(
+                hidden_dim=MODEL_V3_HIDDEN_DIM,
+                num_actions=MODEL_NUM_ACTIONS,
+                history_len=MODEL_HISTORY_LEN
+            ).to(ai_device)
+            model.load_state_dict(state_dict)
+            print("[OK] 模型按 V3 架构加载成功")
+            return model
+
+    # 优先：外部配置的模型（你上传到发行版后的直链）
+    if custom_model_url or custom_model_path:
+        source_desc = custom_model_path or custom_model_url
+        print(f"[INFO] 尝试加载外部模型: {source_desc}")
+        try:
+            model_path = custom_model_path
+            if custom_model_url:
+                os.makedirs(os.path.join(script_dir, 'models'), exist_ok=True)
+                model_path = os.path.join(script_dir, 'models', 'external_model_latest.pth')
+                urllib.request.urlretrieve(custom_model_url, model_path)
+
+            checkpoint = torch.load(model_path, map_location=ai_device, weights_only=False)
+            state_dict = _extract_state_dict(checkpoint)
+            ai_model = _build_model_from_state_dict(state_dict)
+            ai_model.eval()
+            print(f"[OK] 外部模型加载成功: {source_desc}")
+            return True
+        except Exception as e:
+            print(f"[WARN] 外部模型加载失败，回退到内置模型: {e}")
+
+    # 次优先：本地 V5 最强模型 (ELO=1140)
     v5_path = os.path.join(script_dir, 'models', 'dmc_v5_best.pth')
     if os.path.exists(v5_path):
-        ai_model = DMCNetworkV5(state_dim=44, num_actions=67, history_len=5, hidden_dim=384).to(ai_device)
+        ai_model = DMCNetworkV5(
+            state_dim=MODEL_STATE_DIM,
+            num_actions=MODEL_NUM_ACTIONS,
+            history_len=MODEL_HISTORY_LEN,
+            hidden_dim=MODEL_V5_HIDDEN_DIM
+        ).to(ai_device)
         checkpoint = torch.load(v5_path, map_location=ai_device, weights_only=False)
         ai_model.load_state_dict(checkpoint['model_state_dict'])
         ai_model.eval()
@@ -79,12 +155,54 @@ def load_ai_model():
             print("游戏仍可运行，但AI将使用随机策略")
             return False
 
-    ai_model = DMCNetwork(hidden_dim=256, num_actions=67, history_len=5).to(ai_device)
+    ai_model = DMCNetwork(
+        hidden_dim=MODEL_V3_HIDDEN_DIM,
+        num_actions=MODEL_NUM_ACTIONS,
+        history_len=MODEL_HISTORY_LEN
+    ).to(ai_device)
     checkpoint = torch.load(local_path, map_location=ai_device, weights_only=False)
-    ai_model.load_state_dict(checkpoint['model_state_dict'])
+    ai_model.load_state_dict(_extract_state_dict(checkpoint))
     ai_model.eval()
     print(f"[OK] V3 AI 模型加载成功: {local_path}")
     return True
+
+
+@app.route('/api/model/reload', methods=['POST'])
+def reload_model():
+    """在线重载模型：支持传入发行版模型直链。"""
+    global ai_model
+    data = request.json or {}
+
+    model_url = str(data.get('url', '')).strip()
+    model_path = str(data.get('path', '')).strip()
+    reset_default = bool(data.get('reset_default', False))
+
+    if not reset_default and not model_url and not model_path:
+        return jsonify({'success': False, 'error': '请传入 url 或 path；如需恢复默认模型请传 reset_default=true'}), 400
+
+    if model_url:
+        if not (model_url.startswith('http://') or model_url.startswith('https://')):
+            return jsonify({'success': False, 'error': 'url 必须以 http:// 或 https:// 开头'}), 400
+        os.environ['BLUFF_MODEL_URL'] = model_url
+    elif 'BLUFF_MODEL_URL' in os.environ and (reset_default or model_path):
+        os.environ.pop('BLUFF_MODEL_URL')
+
+    if model_path:
+        if not os.path.exists(model_path):
+            return jsonify({'success': False, 'error': 'path 不存在，请检查服务器本地路径'}), 400
+        os.environ['BLUFF_MODEL_PATH'] = model_path
+    elif 'BLUFF_MODEL_PATH' in os.environ and (reset_default or model_url):
+        os.environ.pop('BLUFF_MODEL_PATH')
+
+    loaded = load_ai_model()
+    if not loaded or ai_model is None:
+        return jsonify({'success': False, 'error': '模型加载失败，请检查 URL / PATH'}), 400
+
+    return jsonify({
+        'success': True,
+        'message': '模型已重载',
+        'source': model_path or model_url or 'default'
+    })
 
 
 def init_online_trainer():
@@ -92,27 +210,44 @@ def init_online_trainer():
     global online_trainer, ai_model, ai_device, training_enabled
     if not training_enabled or ai_model is None:
         return
+    trainer_config = {
+        'lr': env_float('TRAIN_LR', 1e-5),
+        'batch_size': env_int('TRAIN_BATCH_SIZE', 64),
+        'train_interval': env_int('TRAIN_INTERVAL', 3),         # 每N局训练一次
+        'imitation_weight': env_float('TRAIN_IMITATION_WEIGHT', 0.3),
+        'value_weight': env_float('TRAIN_VALUE_WEIGHT', 0.5),
+        'save_interval': env_int('TRAIN_SAVE_INTERVAL', 30),    # 每N局存模型
+        'save_dir': os.path.join(script_dir, 'models'),
+        'buffer_capacity': env_int('TRAIN_BUFFER_CAPACITY', 50000),
+        'max_grad_norm': env_float('TRAIN_MAX_GRAD_NORM', 1.0),
+    }
     online_trainer = OnlineTrainer(
         model=ai_model,
         device=ai_device,
-        config={
-            'lr': 1e-5,
-            'batch_size': 64,
-            'train_interval': 3,       # 每3局训练一次
-            'imitation_weight': 0.3,   # 模仿学习权重
-            'value_weight': 0.5,       # value loss权重
-            'save_interval': 30,       # 每30局存模型
-            'save_dir': os.path.join(script_dir, 'models'),
-            'buffer_capacity': 50000,
-        }
+        config=trainer_config
     )
     online_trainer.start()
-    print("[OK] 在线训练器已启动 - AI会从对局中学习")
+    print(f"[OK] 在线训练器已启动: {trainer_config}")
+
+
+def init_runtime_once():
+    """确保在 gunicorn/import 场景下也会执行一次初始化。"""
+    global runtime_initialized
+    if runtime_initialized:
+        return
+    load_ai_model()
+    init_online_trainer()
+    runtime_initialized = True
+    print("[OK] 运行时初始化完成")
+
+
+# 关键：支持 gunicorn `web_game.app:app` 启动时自动初始化
+init_runtime_once()
 
 
 class GameSession:
     def __init__(self, user_id=None):
-        self.env = BluffDiceEnvV3(history_len=5)
+        self.env = BluffDiceEnvV3(history_len=MODEL_HISTORY_LEN)
         self.human_player = 0
         self.ai_player = 1
         self.game_over = False
@@ -413,9 +548,9 @@ if __name__ == '__main__':
     print("="*80)
     print("[Bluff Dice v2.0] - Online Learning Edition")
     print("="*80)
-    load_ai_model()
-    init_online_trainer()
-    print("服务器运行中 → http://localhost:5000")
+    init_runtime_once()
+    port = int(os.getenv('PORT', '5000'))
+    print(f"服务器运行中 → http://localhost:{port}")
     print("="*80)
     # 此处的 host='0.0.0.0' 允许外部网络访问
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=port)
