@@ -9,15 +9,42 @@ import os
 import sys
 import urllib.request
 import uuid
+import importlib
+from importlib.machinery import SourcelessFileLoader
+from importlib.util import spec_from_loader, module_from_spec
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(script_dir)
 sys.path.insert(0, script_dir)
 sys.path.insert(0, parent_dir)
 
-from bluff_dice_env_v3 import BluffDiceEnvV3
-from model_dmc import DMCNetwork, DMCNetworkV5
 from online_trainer import OnlineTrainer
+
+
+def resolve_module(name):
+    """
+    兼容两种打包方式：
+    1) 正常源码模块（*.py）
+    2) 仅包含 __pycache__/*.pyc 的 sourceless 模块
+    """
+    try:
+        return importlib.import_module(name)
+    except ModuleNotFoundError:
+        pyc_path = os.path.join(parent_dir, '__pycache__', f'{name}.cpython-310.pyc')
+        if not os.path.exists(pyc_path):
+            raise
+        loader = SourcelessFileLoader(name, pyc_path)
+        spec = spec_from_loader(name, loader)
+        module = module_from_spec(spec)
+        loader.exec_module(module)
+        return module
+
+
+env_module = resolve_module('bluff_dice_env_v3')
+model_module = resolve_module('model_dmc')
+BluffDiceEnvV3 = env_module.BluffDiceEnvV3
+DMCNetwork = model_module.DMCNetwork
+DMCNetworkV5 = model_module.DMCNetworkV5
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
