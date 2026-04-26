@@ -50,12 +50,52 @@ def get_user_session():
 # ==========================================
 
 def load_ai_model():
-    """加载 AI 模型 - 如果本地没有就自动从 GitHub 下载"""
+    """加载 AI 模型，可通过环境变量覆盖默认下载源。"""
     global ai_model, ai_device
     
     ai_device = torch.device('cpu')
 
-    # 优先加载 V5 最强模型 (ELO=1140)
+    custom_model_url = os.getenv('BLUFF_MODEL_URL', '').strip()
+    custom_model_path = os.getenv('BLUFF_MODEL_PATH', '').strip()
+
+    def _extract_state_dict(checkpoint_obj):
+        if isinstance(checkpoint_obj, dict) and 'model_state_dict' in checkpoint_obj:
+            return checkpoint_obj['model_state_dict']
+        return checkpoint_obj
+
+    def _build_model_from_state_dict(state_dict):
+        try:
+            model = DMCNetworkV5(state_dim=44, num_actions=67, history_len=5, hidden_dim=384).to(ai_device)
+            model.load_state_dict(state_dict)
+            print("[OK] 模型按 V5 架构加载成功")
+            return model
+        except Exception:
+            model = DMCNetwork(hidden_dim=256, num_actions=67, history_len=5).to(ai_device)
+            model.load_state_dict(state_dict)
+            print("[OK] 模型按 V3 架构加载成功")
+            return model
+
+    # 优先：外部配置的模型（你上传到发行版后的直链）
+    if custom_model_url or custom_model_path:
+        source_desc = custom_model_path or custom_model_url
+        print(f"[INFO] 尝试加载外部模型: {source_desc}")
+        try:
+            model_path = custom_model_path
+            if custom_model_url:
+                os.makedirs(os.path.join(script_dir, 'models'), exist_ok=True)
+                model_path = os.path.join(script_dir, 'models', 'external_model_latest.pth')
+                urllib.request.urlretrieve(custom_model_url, model_path)
+
+            checkpoint = torch.load(model_path, map_location=ai_device, weights_only=False)
+            state_dict = _extract_state_dict(checkpoint)
+            ai_model = _build_model_from_state_dict(state_dict)
+            ai_model.eval()
+            print(f"[OK] 外部模型加载成功: {source_desc}")
+            return True
+        except Exception as e:
+            print(f"[WARN] 外部模型加载失败，回退到内置模型: {e}")
+
+    # 次优先：本地 V5 最强模型 (ELO=1140)
     v5_path = os.path.join(script_dir, 'models', 'dmc_v5_best.pth')
     if os.path.exists(v5_path):
         ai_model = DMCNetworkV5(state_dim=44, num_actions=67, history_len=5, hidden_dim=384).to(ai_device)
@@ -81,10 +121,48 @@ def load_ai_model():
 
     ai_model = DMCNetwork(hidden_dim=256, num_actions=67, history_len=5).to(ai_device)
     checkpoint = torch.load(local_path, map_location=ai_device, weights_only=False)
-    ai_model.load_state_dict(checkpoint['model_state_dict'])
+    ai_model.load_state_dict(_extract_state_dict(checkpoint))
     ai_model.eval()
     print(f"[OK] V3 AI 模型加载成功: {local_path}")
     return True
+
+
+@app.route('/api/model/reload', methods=['POST'])
+def reload_model():
+    """在线重载模型：支持传入发行版模型直链。"""
+    global ai_model
+    data = request.json or {}
+
+    model_url = str(data.get('url', '')).strip()
+    model_path = str(data.get('path', '')).strip()
+    reset_default = bool(data.get('reset_default', False))
+
+    if not reset_default and not model_url and not model_path:
+        return jsonify({'success': False, 'error': '请传入 url 或 path；如需恢复默认模型请传 reset_default=true'}), 400
+
+    if model_url:
+        if not (model_url.startswith('http://') or model_url.startswith('https://')):
+            return jsonify({'success': False, 'error': 'url 必须以 http:// 或 https:// 开头'}), 400
+        os.environ['BLUFF_MODEL_URL'] = model_url
+    elif 'BLUFF_MODEL_URL' in os.environ and (reset_default or model_path):
+        os.environ.pop('BLUFF_MODEL_URL')
+
+    if model_path:
+        if not os.path.exists(model_path):
+            return jsonify({'success': False, 'error': 'path 不存在，请检查服务器本地路径'}), 400
+        os.environ['BLUFF_MODEL_PATH'] = model_path
+    elif 'BLUFF_MODEL_PATH' in os.environ and (reset_default or model_url):
+        os.environ.pop('BLUFF_MODEL_PATH')
+
+    loaded = load_ai_model()
+    if not loaded or ai_model is None:
+        return jsonify({'success': False, 'error': '模型加载失败，请检查 URL / PATH'}), 400
+
+    return jsonify({
+        'success': True,
+        'message': '模型已重载',
+        'source': model_path or model_url or 'default'
+    })
 
 
 def init_online_trainer():
