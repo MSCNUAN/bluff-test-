@@ -10,6 +10,8 @@ import sys
 import urllib.request
 import uuid
 import importlib
+import json
+import threading
 from importlib.machinery import SourcelessFileLoader
 from importlib.util import spec_from_loader, module_from_spec
 
@@ -56,6 +58,8 @@ ai_device = None
 online_trainer = None  # 在线训练器
 training_enabled = os.getenv('TRAINING_ENABLED', 'true').lower() in ('1', 'true', 'yes', 'on')
 runtime_initialized = False
+leaderboard_lock = threading.Lock()
+leaderboard_path = os.path.join(script_dir, 'data', 'leaderboard.json')
 
 
 def env_int(name, default):
@@ -192,6 +196,25 @@ def load_ai_model():
     ai_model.eval()
     print(f"[OK] V3 AI 模型加载成功: {local_path}")
     return True
+
+
+def load_leaderboard():
+    if not os.path.exists(leaderboard_path):
+        return []
+    try:
+        with open(leaderboard_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            return data
+    except Exception:
+        pass
+    return []
+
+
+def save_leaderboard(items):
+    os.makedirs(os.path.dirname(leaderboard_path), exist_ok=True)
+    with open(leaderboard_path, 'w', encoding='utf-8') as f:
+        json.dump(items, f, ensure_ascii=False, indent=2)
 
 
 @app.route('/api/model/reload', methods=['POST'])
@@ -469,6 +492,11 @@ def promo():
     return render_template('promo.html')
 
 
+@app.route('/guide')
+def guide():
+    return render_template('guide.html')
+
+
 # --- 下方的所有路由接口都已升级，从 get_user_session() 获取数据 ---
 
 @app.route('/api/start', methods=['POST'])
@@ -569,6 +597,47 @@ def toggle_training():
     elif training_enabled and online_trainer:
         online_trainer.start()
     return jsonify({'success': True, 'training_enabled': training_enabled})
+
+
+@app.route('/api/leaderboard', methods=['GET'])
+def get_leaderboard():
+    with leaderboard_lock:
+        board = load_leaderboard()
+    board.sort(key=lambda x: x.get('score', 0), reverse=True)
+    return jsonify({'success': True, 'leaderboard': board[:50]})
+
+
+@app.route('/api/leaderboard/submit', methods=['POST'])
+def submit_leaderboard():
+    data = request.json or {}
+    name = str(data.get('name', '')).strip()[:20]
+    score = int(data.get('score', 0))
+    wins = int(data.get('wins', 0))
+    total = int(data.get('total', 0))
+
+    if not name:
+        return jsonify({'success': False, 'error': 'name required'}), 400
+    if score < 0 or wins < 0 or total < 0:
+        return jsonify({'success': False, 'error': 'invalid stats'}), 400
+
+    with leaderboard_lock:
+        board = load_leaderboard()
+        found = None
+        for item in board:
+            if item.get('name') == name:
+                found = item
+                break
+
+        payload = {'name': name, 'score': score, 'wins': wins, 'total': total}
+        if found is None:
+            board.append(payload)
+        elif score > int(found.get('score', 0)):
+            found.update(payload)
+
+        board.sort(key=lambda x: x.get('score', 0), reverse=True)
+        save_leaderboard(board[:200])
+
+    return jsonify({'success': True})
 
 
 if __name__ == '__main__':

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新手说明书 - 吹牛骰子</title>
+    <style>
+        body { font-family: "Microsoft YaHei", sans-serif; background:#111827; color:#e5e7eb; margin:0; }
+        .wrap { max-width: 860px; margin: 0 auto; padding: 28px 18px 48px; line-height: 1.75; }
+        h1,h2 { color: #fbbf24; }
+        .card { background:#1f2937; border:1px solid #374151; border-radius: 12px; padding:16px 18px; margin-bottom: 16px; }
+        a.btn { display:inline-block; margin-top: 8px; padding:8px 12px; border-radius:8px; text-decoration:none; background:#f59e0b; color:#111827; font-weight:700;}
+        code { background:#111827; padding:2px 6px; border-radius:6px; color:#fcd34d; }
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <h1>📘 新手说明书（30秒上手）</h1>
+    <div class="card">
+        <h2>1. 游戏目标</h2>
+        <p>通过叫牌和心理博弈，判断当前桌面总骰子数量是否达到上一家的叫牌；你可以继续加码，也可以选择 <code>开牌</code>。</p>
+    </div>
+
+    <div class="card">
+        <h2>2. 基础规则</h2>
+        <ul>
+            <li>每人 5 个骰子，开局顺子重摇。</li>
+            <li>叫牌格式：<code>M 个 N</code>（例如 3个5）。</li>
+            <li>点数大小：<strong>1 &gt; 6 &gt; 5 &gt; 4 &gt; 3 &gt; 2</strong>。</li>
+            <li>万能规则：1 可当任意点数（但叫过 1 后万能失效）。</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>3. 操作建议</h2>
+        <ul>
+            <li>前期优先试探：从较稳的数量开始叫。</li>
+            <li>看 AI 建议面板：优先参考高概率动作。</li>
+            <li>连输时先降低节奏，避免连续“硬开”。</li>
+        </ul>
+    </div>
+
+    <div class="card">
+        <h2>4. 常见问题</h2>
+        <p><strong>Q:</strong> 为什么 AI 越来越强？<br>
+           <strong>A:</strong> 开启在线训练后，AI 会从对局里学习。</p>
+        <p><strong>Q:</strong> 可以切换模型吗？<br>
+           <strong>A:</strong> 可以，用 <code>/api/model/reload</code> 热重载模型。</p>
+    </div>
+
+    <a class="btn" href="/">返回游戏</a>
+</div>
+</body>
+</html>

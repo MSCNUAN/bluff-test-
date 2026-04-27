@@ -268,6 +268,41 @@
         .rules h3 { color: #f39c12; margin-bottom: 10px; }
         .rules ul { padding-left: 20px; }
         .rules li { margin: 5px 0; }
+        .quick-links {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .quick-link-btn {
+            background: rgba(255,255,255,0.12);
+            color: #ecf0f1;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 8px 14px;
+            text-decoration: none;
+            font-size: 0.92em;
+        }
+        .leaderboard {
+            margin-top: 16px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(241, 196, 15, 0.3);
+            border-radius: 12px;
+            padding: 14px;
+            text-align: left;
+        }
+        .leaderboard h3 {
+            color: #f1c40f;
+            margin-bottom: 8px;
+        }
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px dashed rgba(255,255,255,0.15);
+            padding: 6px 0;
+            font-size: 0.92em;
+        }
 
         .result-overlay {
             position: fixed;
@@ -435,6 +470,15 @@
                     <li>开牌结算：实际数量 &ge; 叫牌数量 &rarr; 叫牌者赢</li>
                 </ul>
             </div>
+            <div class="quick-links">
+                <a class="quick-link-btn" href="/guide" target="_blank">📘 新手说明书</a>
+                <a class="quick-link-btn" href="/updates" target="_blank">📝 更新日志</a>
+                <a class="quick-link-btn" href="/promo" target="_blank">💖 打赏支持</a>
+            </div>
+            <div class="leaderboard">
+                <h3>🌍 全球排行榜（本服）</h3>
+                <div id="leaderboardList" style="color:#bdc3c7;">加载中...</div>
+            </div>
         </div>
 
         <!-- 游戏面板 -->
@@ -533,6 +577,7 @@
         let currentDifficulty = 'normal';
         let diceStyle = localStorage.getItem('dice_style') || '2';
         const CHANGELOG_VERSION = 'v1.5-render-release';
+        const leaderboardName = localStorage.getItem('leaderboard_name') || '';
 
         // 战绩统计
         let stats = JSON.parse(localStorage.getItem('bluff_stats') || '{"humanWins":0,"aiWins":0}');
@@ -543,6 +588,54 @@
             const total = stats.humanWins + stats.aiWins;
             document.getElementById('winRate').textContent = total > 0 ? ((stats.humanWins / total) * 100).toFixed(1) : '0';
             document.getElementById('totalGames').textContent = total;
+        }
+
+        async function loadLeaderboard() {
+            const list = document.getElementById('leaderboardList');
+            try {
+                const r = await fetch('/api/leaderboard');
+                const d = await r.json();
+                if (!d.success || !Array.isArray(d.leaderboard)) throw new Error('bad');
+                if (d.leaderboard.length === 0) {
+                    list.innerHTML = '<div style="color:#95a5a6;">暂无记录，来成为第一个上榜玩家吧！</div>';
+                    return;
+                }
+                list.innerHTML = d.leaderboard.slice(0, 10).map((x, i) => `
+                    <div class="leaderboard-item">
+                        <span>#${i + 1} ${x.name}</span>
+                        <span>积分 ${x.score}（${x.wins}/${x.total}）</span>
+                    </div>
+                `).join('');
+            } catch {
+                list.innerHTML = '<div style="color:#e67e22;">排行榜加载失败</div>';
+            }
+        }
+
+        async function submitLeaderboard() {
+            const total = stats.humanWins + stats.aiWins;
+            if (total < 3) return; // 至少3局再上榜，减少噪音
+            let name = localStorage.getItem('leaderboard_name') || '';
+            if (!name) {
+                name = prompt('请输入你的排行榜昵称（最多20字）', '玩家' + Math.floor(Math.random() * 9999)) || '';
+                name = name.trim().slice(0, 20);
+                if (!name) return;
+                localStorage.setItem('leaderboard_name', name);
+            }
+
+            const score = stats.humanWins * 3 + Math.max(0, stats.humanWins - stats.aiWins);
+            try {
+                await fetch('/api/leaderboard/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name,
+                        score,
+                        wins: stats.humanWins,
+                        total
+                    })
+                });
+                loadLeaderboard();
+            } catch {}
         }
 
         // 音效
@@ -776,6 +869,7 @@
                     playSound('lose');
                 }
                 saveStats();
+                submitLeaderboard();
 
                 // 双方骰子展示
                 diceDiv.innerHTML = `
@@ -834,6 +928,7 @@
         }
 
         showChangelogIfNeeded();
+        loadLeaderboard();
     </script>
 </body>
 </html>
