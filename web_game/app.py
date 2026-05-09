@@ -12,6 +12,7 @@ import uuid
 import importlib
 import json
 import threading
+from datetime import datetime, timedelta, timezone
 from importlib.machinery import SourcelessFileLoader
 from importlib.util import spec_from_loader, module_from_spec
 
@@ -60,6 +61,7 @@ training_enabled = os.getenv('TRAINING_ENABLED', 'true').lower() in ('1', 'true'
 runtime_initialized = False
 leaderboard_lock = threading.Lock()
 leaderboard_path = os.path.join(script_dir, 'data', 'leaderboard.json')
+leaderboard_timezone = timezone(timedelta(hours=8))
 
 
 def env_int(name, default):
@@ -199,12 +201,19 @@ def load_ai_model():
 
 
 def load_leaderboard():
+    current_week = get_leaderboard_week_start()
     if not os.path.exists(leaderboard_path):
         return []
     try:
         with open(leaderboard_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
+        if isinstance(data, dict):
+            if data.get('week_start') != current_week:
+                return []
+            items = data.get('items', [])
+            return items if isinstance(items, list) else []
         if isinstance(data, list):
+            # 兼容旧版本：旧榜单没有周次信息，下一次保存时会写入当前周。
             return data
     except Exception:
         pass
@@ -214,7 +223,24 @@ def load_leaderboard():
 def save_leaderboard(items):
     os.makedirs(os.path.dirname(leaderboard_path), exist_ok=True)
     with open(leaderboard_path, 'w', encoding='utf-8') as f:
-        json.dump(items, f, ensure_ascii=False, indent=2)
+        json.dump({
+            'week_start': get_leaderboard_week_start(),
+            'next_reset': get_next_leaderboard_reset(),
+            'items': items,
+        }, f, ensure_ascii=False, indent=2)
+
+
+def get_leaderboard_week_start():
+    """排行榜按北京时间（UTC+8）每周一刷新。"""
+    today = datetime.now(leaderboard_timezone).date()
+    monday = today - timedelta(days=today.weekday())
+    return monday.isoformat()
+
+
+def get_next_leaderboard_reset():
+    today = datetime.now(leaderboard_timezone).date()
+    next_monday = today + timedelta(days=(7 - today.weekday()))
+    return next_monday.isoformat()
 
 
 @app.route('/api/model/reload', methods=['POST'])
@@ -604,7 +630,13 @@ def get_leaderboard():
     with leaderboard_lock:
         board = load_leaderboard()
     board.sort(key=lambda x: x.get('score', 0), reverse=True)
-    return jsonify({'success': True, 'leaderboard': board[:50]})
+    return jsonify({
+        'success': True,
+        'leaderboard': board[:50],
+        'week_start': get_leaderboard_week_start(),
+        'next_reset': get_next_leaderboard_reset(),
+        'reset_rule': '每周一 00:00（北京时间）自动刷新榜单'
+    })
 
 
 @app.route('/api/leaderboard/submit', methods=['POST'])
