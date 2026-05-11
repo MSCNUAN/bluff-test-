@@ -11,7 +11,10 @@
 2. 启动时指定本地模型文件  
    `BLUFF_MODEL_PATH=/absolute/path/to/model.pth python web_game/app.py`
 
-3. 运行中热重载模型（无需重启）  
+3. 查看当前模型状态
+   `GET /api/model/status` 会返回模型来源、是否加载成功、加载时间、V5/V3 架构、是否随机策略，以及训练开关状态。
+
+4. 运行中热重载模型（无需重启）
    `POST /api/model/reload`，JSON 可传：
    - `url`: 发行版模型直链
    - `path`: 服务器本地模型路径
@@ -57,6 +60,20 @@ curl -X POST http://localhost:5000/api/model/reload \
 
 6. 运行中切换模型
    - 使用 `POST /api/model/reload` 传 `url` 或 `path` 热重载模型，无需重启。
+
+## 排行榜与玩家战绩
+
+前端已集成每周排行榜、我的本周积分、我的排名、Top 3 高亮、昵称修改、战绩面板与游戏结束分享文本。
+
+排行榜规则：
+- 每周一 00:00（北京时间）刷新。
+- 胜利 +3 分，净胜场额外 +1 分。
+- 本周至少完成 3 局后才会提交上榜。
+- 榜单数据保存在当前服务器本地，不跨服务器同步。
+
+相关 API：
+- `GET /api/leaderboard`：返回本周榜单、刷新时间、积分规则和榜单范围说明。
+- `POST /api/leaderboard/submit`：提交昵称、本周积分、胜场和总局数；后端会拒绝少于 3 局的提交。
 
 ## 在线训练功能说明（已集成）
 

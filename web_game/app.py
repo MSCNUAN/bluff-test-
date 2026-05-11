@@ -62,6 +62,16 @@ runtime_initialized = False
 leaderboard_lock = threading.Lock()
 leaderboard_path = os.path.join(script_dir, 'data', 'leaderboard.json')
 leaderboard_timezone = timezone(timedelta(hours=8))
+model_status_lock = threading.Lock()
+model_status = {
+    'source': 'not_loaded',
+    'loaded': False,
+    'loaded_at': None,
+    'model_version': None,
+    'random_policy': True,
+    'error': None,
+}
+
 
 
 def env_int(name, default):
@@ -104,6 +114,26 @@ def get_user_session():
     return active_games[uid]
 # ------------------------------------------
 
+def set_model_status(source, loaded, model_version=None, error=None):
+    with model_status_lock:
+        model_status.update({
+            'source': source,
+            'loaded': bool(loaded),
+            'loaded_at': datetime.now(timezone.utc).isoformat() if loaded else None,
+            'model_version': model_version,
+            'random_policy': not bool(loaded),
+            'error': str(error) if error else None,
+        })
+
+
+def get_model_status_payload():
+    with model_status_lock:
+        payload = dict(model_status)
+    payload['training_enabled'] = bool(training_enabled)
+    payload['training_active'] = bool(online_trainer is not None and training_enabled)
+    return payload
+
+
 def load_ai_model():
     """加载 AI 模型，可通过环境变量覆盖默认下载源。"""
     global ai_model, ai_device
@@ -128,7 +158,7 @@ def load_ai_model():
             ).to(ai_device)
             model.load_state_dict(state_dict)
             print("[OK] 模型按 V5 架构加载成功")
-            return model
+            return model, 'V5'
         except Exception:
             model = DMCNetwork(
                 hidden_dim=MODEL_V3_HIDDEN_DIM,
@@ -137,7 +167,7 @@ def load_ai_model():
             ).to(ai_device)
             model.load_state_dict(state_dict)
             print("[OK] 模型按 V3 架构加载成功")
-            return model
+            return model, 'V3'
 
     # 优先：外部配置的模型（你上传到发行版后的直链）
     if custom_model_url or custom_model_path:
@@ -152,11 +182,13 @@ def load_ai_model():
 
             checkpoint = torch.load(model_path, map_location=ai_device, weights_only=False)
             state_dict = _extract_state_dict(checkpoint)
-            ai_model = _build_model_from_state_dict(state_dict)
+            ai_model, model_version = _build_model_from_state_dict(state_dict)
             ai_model.eval()
+            set_model_status(source_desc, True, model_version)
             print(f"[OK] 外部模型加载成功: {source_desc}")
             return True
         except Exception as e:
+            set_model_status(source_desc, False, error=e)
             print(f"[WARN] 外部模型加载失败，回退到内置模型: {e}")
 
     # 次优先：本地 V5 最强模型 (ELO=1140)
@@ -171,6 +203,7 @@ def load_ai_model():
         checkpoint = torch.load(v5_path, map_location=ai_device, weights_only=False)
         ai_model.load_state_dict(checkpoint['model_state_dict'])
         ai_model.eval()
+        set_model_status(v5_path, True, 'V5')
         print(f"[OK] V5 AI 模型加载成功 (ELO=1140): {v5_path}")
         return True
 
@@ -184,6 +217,7 @@ def load_ai_model():
             urllib.request.urlretrieve(url, local_path)
             print("[OK] 模型下载完成")
         except Exception as e:
+            set_model_status(local_path, False, 'V3', e)
             print(f"[ERROR] 模型下载失败: {e}")
             print("游戏仍可运行，但AI将使用随机策略")
             return False
@@ -196,6 +230,7 @@ def load_ai_model():
     checkpoint = torch.load(local_path, map_location=ai_device, weights_only=False)
     ai_model.load_state_dict(_extract_state_dict(checkpoint))
     ai_model.eval()
+    set_model_status(local_path, True, 'V3')
     print(f"[OK] V3 AI 模型加载成功: {local_path}")
     return True
 
@@ -243,6 +278,12 @@ def get_next_leaderboard_reset():
     return next_monday.isoformat()
 
 
+@app.route('/api/model/status', methods=['GET'])
+def get_model_status():
+    """返回当前 AI 模型加载状态，供页面徽章和运维检查使用。"""
+    return jsonify({'success': True, 'model': get_model_status_payload()})
+
+
 @app.route('/api/model/reload', methods=['POST'])
 def reload_model():
     """在线重载模型：支持传入发行版模型直链。"""
@@ -277,7 +318,8 @@ def reload_model():
     return jsonify({
         'success': True,
         'message': '模型已重载',
-        'source': model_path or model_url or 'default'
+        'source': model_path or model_url or 'default',
+        'model': get_model_status_payload()
     })
 
 
@@ -635,7 +677,10 @@ def get_leaderboard():
         'leaderboard': board[:50],
         'week_start': get_leaderboard_week_start(),
         'next_reset': get_next_leaderboard_reset(),
-        'reset_rule': '每周一 00:00（北京时间）自动刷新榜单'
+        'reset_rule': '每周一 00:00（北京时间）自动刷新榜单',
+        'scoring_rule': '胜利 +3 分，净胜场额外 +1 分；本周至少 3 局后上榜',
+        'eligible_min_games': 3,
+        'scope_rule': '本服榜单，不跨服务器同步'
     })
 
 
@@ -651,6 +696,8 @@ def submit_leaderboard():
         return jsonify({'success': False, 'error': 'name required'}), 400
     if score < 0 or wins < 0 or total < 0:
         return jsonify({'success': False, 'error': 'invalid stats'}), 400
+    if total < 3:
+        return jsonify({'success': False, 'error': '本周至少 3 局后才能上榜'}), 400
 
     with leaderboard_lock:
         board = load_leaderboard()
@@ -667,9 +714,11 @@ def submit_leaderboard():
             found.update(payload)
 
         board.sort(key=lambda x: x.get('score', 0), reverse=True)
-        save_leaderboard(board[:200])
+        board = board[:200]
+        save_leaderboard(board)
+        rank = next((i + 1 for i, item in enumerate(board) if item.get('name') == name), None)
 
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'rank': rank, 'score': score, 'leaderboard': board[:50]})
 
 
 if __name__ == '__main__':
