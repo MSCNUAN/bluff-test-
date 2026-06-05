@@ -1,0 +1,12 @@
+.venv/
+web_game/data/
+web_game/models/
+*.pth
+*.log
+
+# This project currently depends on Python 3.10 bytecode for these two modules.
+# Keep them in Git until the matching source files are restored.
+__pycache__/*
+!__pycache__/
+!__pycache__/model_dmc.cpython-310.pyc
+!__pycache__/bluff_dice_env_v3.cpython-310.pyc
